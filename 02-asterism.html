@@ -19,13 +19,16 @@
   #title h1 { font-weight:400; font-size:30px; letter-spacing:.55em; color:#cdb87a; }
   #title p { font-family:'Shippori Mincho',serif; font-size:12px; letter-spacing:.5em; color:#7c7660; margin-top:6px; }
   #inputBar {
-    display:none !important;
     position:fixed; left:0; right:0; bottom:calc(34px + env(safe-area-inset-bottom)); z-index:4;
     display:flex; flex-direction:column; align-items:center; gap:16px;
-    opacity:0; transition:opacity 1.6s ease 1s;
+    opacity:0; pointer-events:none; transition:opacity 1.6s ease 1s;
   }
-  #inputBar.show { opacity:0; pointer-events:none; }
+  #inputBar.show { opacity:1; pointer-events:auto; }
   #slots { display:flex; gap:18px; }
+  #inputLabel {
+    font-family:'Shippori Mincho',serif; font-size:12px; letter-spacing:.28em;
+    color:#8d8468; text-align:center;
+  }
   .slot { display:flex; flex-direction:column; align-items:center; user-select:none; }
   .slot .arrow {
     background:none; border:none; color:#5c5742; font-size:13px; cursor:pointer;
@@ -131,6 +134,7 @@
 <div id="title"><h1>ASTERISM</h1><p>— 星 の 綴 り —</p></div>
 
 <div id="inputBar">
+  <div id="inputLabel">流れ星が綴る名を入力する</div>
   <div id="slots"></div>
   <button id="answerBtn">ANSWER</button>
   <div id="msg">夜は、まだ沈黙している。</div>
