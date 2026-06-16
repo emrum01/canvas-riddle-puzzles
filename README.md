@@ -5,7 +5,6 @@
 
 ## Included Puzzles
 
-- `01-cursed-calendar.html`
 - `02-asterism.html`
 - `03-tokino-kotonoha.html`
 - `04-moon-reader.html`
