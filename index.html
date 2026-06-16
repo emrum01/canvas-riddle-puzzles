@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>再解釈パズル四題</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Yuji+Syuku&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    min-height:100vh; background:#0b0b10; color:#cfc6ad;
+    font-family:'Shippori Mincho',serif; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:40px; padding:40px 20px;
+  }
+  h1 { font-weight:500; letter-spacing:.4em; font-size:clamp(20px,4vw,30px); color:#e3d9ba; }
+  p.lead { color:#7e775f; font-size:13px; letter-spacing:.2em; }
+  .cards { display:flex; gap:26px; flex-wrap:wrap; justify-content:center; }
+  a.card {
+    width:280px; padding:34px 28px; text-decoration:none; color:inherit;
+    border:1px solid #2e2c26; background:#101015; transition:.3s;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  a.card:hover { transform:translateY(-6px); }
+  .card h2 { font-size:21px; font-weight:700; letter-spacing:.15em; }
+  .card .genre { font-size:11px; letter-spacing:.35em; }
+  .card p { font-size:12.5px; line-height:2; color:#8d856a; }
+  .card.horror { border-color:#3d1512; }
+  .card.horror:hover { box-shadow:0 14px 40px rgba(120,20,16,.25); border-color:#7a221c; }
+  .card.horror h2 { font-family:'Yuji Syuku',serif; color:#b03228; }
+  .card.horror .genre { color:#7a4a44; }
+  .card.chic { border-color:#3a3526; }
+  .card.chic:hover { box-shadow:0 14px 40px rgba(205,184,122,.18); border-color:#a08c54; }
+  .card.chic h2 { color:#cdb87a; letter-spacing:.3em; }
+  .card.chic .genre { color:#8d8468; }
+  .card.wafu { border-color:#3a2a1a; }
+  .card.wafu:hover { box-shadow:0 14px 40px rgba(200,100,50,.18); border-color:#a85a3a; }
+  .card.wafu h2 { font-family:'Yuji Syuku',serif; color:#d8893f; }
+  .card.wafu .genre { color:#8a6a4a; }
+</style>
+</head>
+<body>
+  <h1>再解釈パズル 四題</h1>
+  <p class="lead">「意味不明」が「そういうことか！」に変わる瞬間を</p>
+  <div class="cards">
+    <a class="card horror" href="./01-cursed-calendar.html">
+      <div class="genre">— 恐怖 —</div>
+      <h2>一九??年の暦</h2>
+      <p>赤丸だらけの四枚の暦と、四桁の数字錠。丸が示すのは日付ではない。</p>
+    </a>
+    <a class="card chic" href="./02-asterism.html">
+      <div class="genre">— 洒落 —</div>
+      <h2>ASTERISM</h2>
+      <p>同じ軌道を流れ続ける星。五つの光が綴る、ひとつの言葉。</p>
+    </a>
+    <a class="card wafu" href="./04-moon-reader.html">
+      <div class="genre">— 月影 —</div>
+      <h2>月ヲ読む</h2>
+      <p>ひとつの月盤を回し、欠けた名を読む。読めた名は、次の刻へ。</p>
+    </a>
+    <a class="card wafu" href="./03-tokino-kotonoha.html">
+      <div class="genre">— 和風 —</div>
+      <h2>刻ノ言ノ葉</h2>
+      <p>前の名を、四つの時計へ移す。針ハ十ヲ巡リ、五ヲ刻ム。</p>
+    </a>
+  </div>
+</body>
+</html>

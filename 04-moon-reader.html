@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月ヲ読む — MOON READER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; min-height:100dvh; overflow:hidden; background:#020304; }
+  body { font-family:'Shippori Mincho',serif; color:#c9bb98; }
+  #scene { position:fixed; inset:0; width:100vw; height:100dvh; touch-action:none; display:block; cursor:grab; }
+  #scene:active { cursor:grabbing; }
+  .overlay {
+    position:fixed; inset:0; z-index:10; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px;
+    background:radial-gradient(circle at 50% 38%, rgba(78,22,13,.2), rgba(0,0,0,0) 48%), #030405;
+    transition:opacity 1.1s ease;
+  }
+  .overlay.hidden { opacity:0; pointer-events:none; }
+  .overlay h1 {
+    font-family:'Yuji Syuku',serif; font-size:clamp(34px,8vw,62px);
+    letter-spacing:.24em; padding-left:.24em; color:#ded2b7;
+    text-shadow:0 0 36px rgba(170,36,22,.45); margin-bottom:26px;
+  }
+  .fear { color:#a8402e; font-family:'Yuji Syuku',serif; letter-spacing:.18em; font-size:19px; }
+  .btn {
+    margin-top:34px; width:min(320px,100%); padding:14px 22px;
+    background:transparent; border:1px solid #5b4a31; color:#d8c69a;
+    font-family:'Shippori Mincho',serif; font-size:15px; letter-spacing:.28em;
+    cursor:pointer; transition:.25s;
+  }
+  .btn:hover { background:#1b0d0a; border-color:#8a2c20; }
+  #caption {
+    position:fixed; left:50%; top:calc(14px + env(safe-area-inset-top)); z-index:4;
+    transform:translateX(-50%); width:min(520px, calc(100vw - 28px)); padding:10px 16px;
+    text-align:center; color:#d0bea0; font-family:'Yuji Syuku',serif; letter-spacing:.12em;
+    line-height:1.6; background:rgba(3,4,5,.72); border:1px solid rgba(91,74,49,.54);
+    box-shadow:0 0 22px rgba(0,0,0,.46); pointer-events:none; opacity:.95;
+  }
+  #modeLabel {
+    display:block; margin-top:2px; color:#a33b2a; font-family:'Shippori Mincho',serif;
+    font-size:12px; letter-spacing:.12em;
+  }
+  #meter {
+    position:fixed; left:50%; bottom:calc(72px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    width:min(260px,52vw); height:2px; z-index:4; background:rgba(83,62,38,.42); pointer-events:none;
+  }
+  #meter span { display:block; height:100%; width:0%; background:#9c281b; box-shadow:0 0 14px rgba(166,37,24,.7); transition:width .18s ease; }
+  #signs {
+    position:fixed; left:50%; bottom:calc(88px + env(safe-area-inset-bottom)); z-index:4;
+    transform:translateX(-50%); display:flex; gap:8px; pointer-events:none;
+  }
+  .sign {
+    width:8px; height:8px; border-radius:50%; background:#3d3020;
+    box-shadow:0 0 0 1px rgba(115,92,58,.34); opacity:.68; transition:.18s;
+  }
+  .sign.hot {
+    background:#a63324; box-shadow:0 0 12px rgba(180,45,30,.7); opacity:1;
+  }
+  #hud { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(14px + env(safe-area-inset-bottom)); z-index:5; display:flex; gap:10px; }
+  .hudbtn {
+    width:42px; height:42px; border-radius:50%; border:1px solid #4a3c26;
+    background:rgba(7,7,8,.74); color:#9a8d70; font-size:17px; cursor:pointer;
+    font-family:'Shippori Mincho',serif; transition:.25s;
+  }
+  .hudbtn:hover { border-color:#8a2c20; color:#d8c69a; }
+  #hintModal {
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(3,3,4,.9); z-index:20; padding:20px;
+  }
+  #hintModal.show { display:flex; }
+  .hintbox {
+    max-width:520px; width:100%; max-height:82dvh; overflow:auto;
+    border:1px solid #4a3c26; background:#090908; padding:30px 28px; position:relative;
+  }
+  .hintbox h2 { font-family:'Yuji Syuku',serif; color:#a33b2a; letter-spacing:.35em; font-size:20px; margin-bottom:18px; }
+  .hintbox li { list-style:none; padding:12px 0; border-bottom:1px dashed #2b2318; line-height:1.9; font-size:14px; }
+  .hintbox li.locked { color:#4b402d; cursor:pointer; }
+  .hintbox .close { position:absolute; top:8px; right:14px; background:none; border:none; color:#6e5f44; font-size:22px; cursor:pointer; }
+  #endPanel {
+    position:fixed; inset:0; z-index:8; display:none; flex-direction:column;
+    align-items:center; justify-content:flex-end; padding:24px 18px calc(82px + env(safe-area-inset-bottom));
+    text-align:center; pointer-events:none; animation:fadein 1.8s ease;
+  }
+  #endPanel.show { display:flex; }
+  #endPanel .word {
+    font-family:'Yuji Syuku',serif; font-size:clamp(62px,18vw,116px);
+    letter-spacing:.24em; padding-left:.24em; color:#eee4cb;
+    text-shadow:0 0 54px rgba(185,40,24,.86);
+  }
+  #endPanel .kana { color:#c79c6a; letter-spacing:.55em; padding-left:.55em; margin-top:4px; }
+  #endPanel .note { color:#7d715a; line-height:2; margin-top:16px; font-size:13px; }
+  @media (max-width: 720px) {
+    #caption {
+      top:calc(10px + env(safe-area-inset-top)); width:calc(100vw - 24px);
+      padding:9px 12px; font-size:13px; letter-spacing:.08em;
+    }
+    #modeLabel { font-size:11px; }
+    #meter { bottom:calc(66px + env(safe-area-inset-bottom)); }
+    #signs { bottom:calc(82px + env(safe-area-inset-bottom)); }
+    #hud { bottom:calc(10px + env(safe-area-inset-bottom)); }
+    .hudbtn { width:40px; height:40px; }
+  }
+  @keyframes fadein { from{opacity:0} to{opacity:1} }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="caption">月面に隠れた四文字を浮かび上がらせろ<span id="modeLabel">月を傾け、下の灯を回す</span></div>
+<div id="meter"><span id="meterFill"></span></div>
+<div id="signs" aria-hidden="true"><span class="sign"></span><span class="sign"></span><span class="sign"></span></div>
+
+<div id="hud">
+  <button class="hudbtn" id="hintBtn" title="ヒント">？</button>
+  <button class="hudbtn" id="muteBtn" title="音">♪</button>
+</div>
+
+<div id="hintModal">
+  <div class="hintbox">
+    <button class="close" id="hintClose">×</button>
+    <h2>月影</h2>
+    <ol id="hintList">
+      <li>月を正面から読むな。傾けると傷が赤く続く。</li>
+      <li class="locked" data-hint="下の赤い灯を回すと、文字の影が濃くなる。">…（触れると、月が囁く）</li>
+      <li class="locked" data-hint="傷が赤く続く角度で止める。">…</li>
+    </ol>
+  </div>
+</div>
+
+<div id="endPanel">
+  <div class="word">月読</div>
+  <div class="kana">つ く よ み</div>
+  <div class="note">この名を、次の刻へ。</div>
+</div>
+
+<div class="overlay" id="intro">
+  <h1>月ヲ読む</h1>
+  <p><span class="fear">隠れた四文字を浮かび上がらせろ。</span></p>
+  <button class="btn" id="enterBtn">月に触れる</button>
+</div>
+
+<script type="module">
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setClearColor(0x020304, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x020304, 9, 22);
+
+const camera = new THREE.PerspectiveCamera(34, 1, .1, 40);
+camera.position.set(0, .05, 8.7);
+camera.lookAt(0, 0, 0);
+
+const moon = new THREE.Group();
+scene.add(moon);
+const revealGroup = new THREE.Group();
+moon.add(revealGroup);
+
+const state = {
+  started:false,
+  solved:false,
+  mode:null,
+  lastX:0,
+  lastY:0,
+  rotX:-0.08,
+  rotY:-0.72,
+  lightAngle:2.35,
+  progress:0,
+  muted:false,
+};
+const target = { rotX:-0.38, rotY:.62, lightAngle:-.85 };
+const lightControl = { radiusX:1.72, radiusZ:.96, y:-2.28 };
+let AC = null;
+let droneGain = null;
+
+const moonMaterial = new THREE.MeshStandardMaterial({
+  color:0x71664f,
+  roughness:1,
+  metalness:.02,
+  emissive:0x090605,
+  emissiveIntensity:.08,
+});
+const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(2.35, 128, 96), moonMaterial);
+moon.add(moonMesh);
+
+const terminator = new THREE.Mesh(
+  new THREE.SphereGeometry(2.365, 96, 64),
+  new THREE.MeshBasicMaterial({ color:0x050303, transparent:true, opacity:.38, side:THREE.BackSide })
+);
+moon.add(terminator);
+
+function makeCraters(){
+  const craterMat = new THREE.MeshBasicMaterial({ color:0x1b1611, transparent:true, opacity:.32, depthWrite:false });
+  for(let i=0;i<42;i++){
+    const theta = Math.random() * Math.PI * 2;
+    const phi = .42 + Math.random() * 1.95;
+    const r = 2.372;
+    const spot = new THREE.Mesh(new THREE.CircleGeometry(.035 + Math.random()*.11, 24), craterMat.clone());
+    spot.position.set(
+      Math.sin(phi) * Math.cos(theta) * r,
+      Math.cos(phi) * r,
+      Math.sin(phi) * Math.sin(theta) * r
+    );
+    spot.lookAt(0,0,0);
+    spot.rotateY(Math.PI);
+    spot.material.opacity = .14 + Math.random()*.24;
+    moon.add(spot);
+  }
+}
+makeCraters();
+
+function makeTextTexture(text){
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 256;
+  const g = c.getContext('2d');
+  g.clearRect(0,0,256,256);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = '700 132px "Yuji Syuku", serif';
+  g.lineWidth = 9;
+  g.strokeStyle = 'rgba(38, 14, 10, .82)';
+  g.strokeText(text, 128, 132);
+  g.fillStyle = '#7f2017';
+  g.shadowColor = 'rgba(176, 30, 20, .78)';
+  g.shadowBlur = 16;
+  g.fillText(text, 128, 132);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function surfaceSprite(text, x, y, z, scale, rotate=0){
+  const material = new THREE.SpriteMaterial({
+    map:makeTextTexture(text),
+    transparent:true,
+    opacity:0,
+    depthWrite:false,
+  });
+  const sprite = new THREE.Sprite(material);
+  const p = new THREE.Vector3(x, y, z).normalize().multiplyScalar(2.42);
+  sprite.position.copy(p);
+  sprite.scale.set(scale, scale, scale);
+  sprite.material.rotation = rotate;
+  revealGroup.add(sprite);
+  return sprite;
+}
+
+const answerMarks = [
+  surfaceSprite('つ', -1.42, .86, 1.68, .72, -.18),
+  surfaceSprite('く', -.84, .35, 2.02, .70, .08),
+  surfaceSprite('よ', -.2, -.13, 2.12, .72, .16),
+  surfaceSprite('み', .48, -.66, 1.9, .74, -.1),
+];
+
+const scratchMat = new THREE.MeshBasicMaterial({ color:0x65180f, transparent:true, opacity:.2, side:THREE.DoubleSide, depthWrite:false });
+for(let i=0;i<36;i++){
+  const scratch = new THREE.Mesh(new THREE.PlaneGeometry(.18 + Math.random()*.42, .015), scratchMat.clone());
+  const theta = -1.2 + Math.random()*2.4;
+  const phi = .72 + Math.random()*1.62;
+  scratch.position.set(Math.sin(phi)*Math.cos(theta)*2.44, Math.cos(phi)*2.44, Math.sin(phi)*Math.sin(theta)*2.44);
+  scratch.lookAt(0,0,0);
+  scratch.rotateY(Math.PI);
+  scratch.rotateZ(Math.random()*Math.PI);
+  scratch.material.opacity = .08 + Math.random()*.18;
+  moon.add(scratch);
+}
+
+const lightRig = new THREE.Group();
+scene.add(lightRig);
+const keyLight = new THREE.DirectionalLight(0xd8b76e, 3.2);
+scene.add(keyLight);
+const redLight = new THREE.PointLight(0x9e2418, 1.8, 8);
+scene.add(redLight);
+scene.add(new THREE.AmbientLight(0x251b15, .82));
+
+const lightOrbit = new THREE.Mesh(
+  new THREE.TorusGeometry(1.92, .012, 8, 96),
+  new THREE.MeshBasicMaterial({ color:0x6b5635, transparent:true, opacity:.25 })
+);
+lightOrbit.rotation.x = Math.PI / 2;
+lightOrbit.position.y = lightControl.y;
+lightRig.add(lightOrbit);
+
+const lightHandle = new THREE.Mesh(
+  new THREE.SphereGeometry(.16, 32, 16),
+  new THREE.MeshBasicMaterial({ color:0xc5482b })
+);
+lightRig.add(lightHandle);
+
+const handleGlow = new THREE.Mesh(
+  new THREE.SphereGeometry(.29, 32, 16),
+  new THREE.MeshBasicMaterial({ color:0x9f2417, transparent:true, opacity:.24 })
+);
+lightRig.add(handleGlow);
+
+const stars = new THREE.Group();
+for(let i=0;i<220;i++){
+  const star = new THREE.Mesh(
+    new THREE.SphereGeometry(.008 + Math.random()*.012, 8, 8),
+    new THREE.MeshBasicMaterial({ color:0xc8bfa0, transparent:true, opacity:.16 + Math.random()*.45 })
+  );
+  star.position.set((Math.random()-.5)*11, (Math.random()-.5)*15, -4-Math.random()*5);
+  stars.add(star);
+}
+scene.add(stars);
+
+function norm(a){
+  while(a > Math.PI) a -= Math.PI * 2;
+  while(a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
+function clamp(value, min, max){
+  return Math.max(min, Math.min(max, value));
+}
+function closeness(value, goal, range){
+  return Math.max(0, 1 - Math.abs(norm(value - goal)) / range);
+}
+function solveSignals(){
+  return {
+    tilt: closeness(state.rotX, target.rotX, .62),
+    turn: closeness(state.rotY, target.rotY, .72),
+    lamp: closeness(state.lightAngle, target.lightAngle, .58),
+  };
+}
+function updateLight(){
+  const x = Math.cos(state.lightAngle) * lightControl.radiusX;
+  const z = Math.sin(state.lightAngle) * lightControl.radiusZ;
+  const y = lightControl.y + Math.sin(state.lightAngle * 1.7) * .13;
+  lightHandle.position.set(x, y, z);
+  handleGlow.position.copy(lightHandle.position);
+  keyLight.position.set(x * .75, 1.25, z + 3.4);
+  redLight.position.set(x * .55, y + .7, z + 1.6);
+}
+function solveProgress(){
+  const { tilt, turn, lamp } = solveSignals();
+  return Math.pow(tilt * turn * lamp, .72);
+}
+function updatePuzzle(){
+  moon.rotation.x = state.rotX;
+  moon.rotation.y = state.rotY;
+  updateLight();
+  const { tilt, turn, lamp } = solveSignals();
+  state.progress = solveProgress();
+  const glow = Math.max(0, (state.progress - .3) / .7);
+  answerMarks.forEach((mark, i)=>{
+    const stagedGlow = Math.max(0, (state.progress - (.22 + i * .1)) / .68);
+    const local = Math.max(0, Math.min(1, stagedGlow * 1.55));
+    mark.material.opacity = local;
+    mark.scale.setScalar(.68 + local * .13);
+  });
+  moonMaterial.emissiveIntensity = .08 + glow * .18;
+  redLight.intensity = 1.1 + glow * 3.2;
+  handleGlow.material.opacity = .16 + glow * .34;
+  document.querySelectorAll('.sign').forEach((sign, i)=>{
+    sign.classList.toggle('hot', [tilt, turn, lamp][i] > .72);
+  });
+  document.getElementById('meterFill').style.width = `${Math.round(state.progress * 100)}%`;
+  if(!state.solved && state.progress > .9){
+    state.solved = true;
+    chime();
+    setTimeout(()=>document.getElementById('endPanel').classList.add('show'), 650);
+  }
+}
+
+function resize(){
+  const w = innerWidth;
+  const h = innerHeight;
+  const narrow = w < 720;
+  const short = h < 660;
+  renderer.setSize(w, h, true);
+  camera.aspect = w / h;
+  camera.position.z = narrow ? 13.4 : short ? 10.2 : 9.3;
+  camera.position.y = narrow ? .14 : .12;
+  camera.updateProjectionMatrix();
+  moon.scale.setScalar(narrow ? .62 : short ? .72 : .8);
+  moon.position.y = narrow ? .82 : .2;
+  lightRig.scale.setScalar(narrow ? .66 : short ? .78 : .86);
+  lightRig.position.y = narrow ? .1 : 0;
+}
+addEventListener('resize', resize);
+resize();
+updatePuzzle();
+
+const projected = new THREE.Vector3();
+const pointerNdc = new THREE.Vector2();
+const raycaster = new THREE.Raycaster();
+const lightPlane = new THREE.Plane();
+const lightHit = new THREE.Vector3();
+const lightLocal = new THREE.Vector3();
+function pointerToLightLocal(x, y){
+  pointerNdc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointerNdc, camera);
+  const worldY = lightRig.position.y + lightControl.y * lightRig.scale.y;
+  lightPlane.setFromNormalAndCoplanarPoint(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, worldY, 0)
+  );
+  if(!raycaster.ray.intersectPlane(lightPlane, lightHit)) return null;
+  lightRig.worldToLocal(lightLocal.copy(lightHit));
+  return lightLocal;
+}
+function lightScreenDistance(x, y){
+  lightHandle.updateWorldMatrix(true, false);
+  projected.setFromMatrixPosition(lightHandle.matrixWorld).project(camera);
+  const sx = (projected.x * .5 + .5) * innerWidth;
+  const sy = (-projected.y * .5 + .5) * innerHeight;
+  return Math.hypot(x - sx, y - sy);
+}
+function isNearLightOrbit(x, y){
+  const p = pointerToLightLocal(x, y);
+  if(!p) return false;
+  const ellipseDistance = Math.hypot(p.x / lightControl.radiusX, p.z / lightControl.radiusZ);
+  return Math.abs(ellipseDistance - 1) < (innerWidth < 720 ? .48 : .34);
+}
+function lightAngleFromPointer(x, y){
+  const p = pointerToLightLocal(x, y);
+  if(p) return Math.atan2(p.z / lightControl.radiusZ, p.x / lightControl.radiusX);
+  const cx = innerWidth * .5;
+  const cy = innerHeight * .8;
+  return Math.atan2((y - cy) / .62, x - cx);
+}
+function moveLightToward(angle){
+  const delta = norm(angle - state.lightAngle);
+  const backSide = Math.sin(state.lightAngle) < 0 || Math.sin(angle) < 0;
+  const maxStep = backSide ? .028 : .085;
+  state.lightAngle = norm(state.lightAngle + clamp(delta, -maxStep, maxStep));
+}
+
+canvas.addEventListener('pointerdown', e=>{
+  if(!state.started) return;
+  e.preventDefault();
+  if(state.solved){
+    state.solved = false;
+    document.getElementById('endPanel').classList.remove('show');
+  }
+  state.mode = lightScreenDistance(e.clientX, e.clientY) < 70 || isNearLightOrbit(e.clientX, e.clientY) ? 'light' : 'moon';
+  document.getElementById('modeLabel').textContent = state.mode === 'light' ? '灯を回す' : '月を傾ける';
+  state.lastX = e.clientX;
+  state.lastY = e.clientY;
+  canvas.setPointerCapture?.(e.pointerId);
+});
+canvas.addEventListener('pointermove', e=>{
+  if(!state.mode) return;
+  e.preventDefault();
+  const dx = e.clientX - state.lastX;
+  const dy = e.clientY - state.lastY;
+  if(state.mode === 'moon'){
+    state.rotY = norm(state.rotY + dx * .008);
+    state.rotX = Math.max(-1.05, Math.min(.86, state.rotX + dy * .007));
+    pluck(132 + Math.abs(dx) + Math.abs(dy), .012);
+  }else{
+    moveLightToward(lightAngleFromPointer(e.clientX, e.clientY));
+    pluck(220 + Math.abs(norm(state.lightAngle - target.lightAngle)) * 36, .014);
+  }
+  state.lastX = e.clientX;
+  state.lastY = e.clientY;
+  updatePuzzle();
+});
+function clearMode(){
+  state.mode = null;
+  document.getElementById('modeLabel').textContent = '月を傾け、下の灯を回す';
+}
+canvas.addEventListener('pointerup', clearMode);
+canvas.addEventListener('pointercancel', clearMode);
+
+let lastT = 0;
+function animate(t){
+  const dt = Math.min(.05,(t-lastT)/1000 || .016);
+  lastT = t;
+  stars.rotation.z -= dt * .006;
+  terminator.rotation.y = state.lightAngle + Math.PI * .5;
+  terminator.material.opacity = .3 + Math.sin(t * .0016) * .04;
+  lightHandle.scale.setScalar(1 + Math.sin(t * .006) * .08);
+  renderer.render(scene,camera);
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+function audioInit(){
+  if(AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  droneGain = AC.createGain();
+  droneGain.gain.value = .023;
+  droneGain.connect(AC.destination);
+  [55,82.4,110].forEach((f,i)=>{
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.type='sine'; o.frequency.value=f; g.gain.value=i===0?1:.38;
+    o.connect(g); g.connect(droneGain); o.start();
+  });
+}
+function pluck(f=220,v=.05){
+  if(!AC || state.muted) return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type='triangle'; o.frequency.value=f;
+  g.gain.setValueAtTime(.001,AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(v,AC.currentTime+.01);
+  g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.28);
+  o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime+.32);
+}
+function chime(){
+  [196,246.9,293.7,392].forEach((f,i)=>setTimeout(()=>pluck(f,.1),i*170));
+}
+
+document.getElementById('enterBtn').addEventListener('click',()=>{
+  audioInit();
+  document.getElementById('intro').classList.add('hidden');
+  state.started = true;
+});
+document.getElementById('muteBtn').addEventListener('click',e=>{
+  state.muted = !state.muted;
+  if(droneGain) droneGain.gain.value = state.muted ? 0 : .023;
+  e.target.textContent = state.muted ? '∅' : '♪';
+});
+const hintModal = document.getElementById('hintModal');
+document.getElementById('hintBtn').addEventListener('click',()=>hintModal.classList.add('show'));
+document.getElementById('hintClose').addEventListener('click',()=>hintModal.classList.remove('show'));
+hintModal.addEventListener('click',e=>{ if(e.target===hintModal) hintModal.classList.remove('show'); });
+document.querySelectorAll('#hintList li').forEach(li=>{
+  li.addEventListener('click',()=>{
+    if(li.classList.contains('locked')){
+      li.textContent=li.dataset.hint;
+      li.classList.remove('locked');
+      pluck(260,.05);
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "canvas-riddle-puzzles",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone static puzzle collection extracted from 2chstyleboardui.",
+  "scripts": {
+    "serve": "python3 -m http.server 4173"
+  }
+}

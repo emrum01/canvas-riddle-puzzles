@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASTERISM — 星の綴り</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; min-height:100dvh; overflow:hidden; background:#070b18; }
+  body { font-family:'Cormorant Garamond','Shippori Mincho',serif; color:#d8cfae; }
+  canvas { display:block; position:fixed; inset:0; touch-action:none; }
+  #title {
+    position:fixed; top:30px; left:44px; z-index:4; pointer-events:none;
+    opacity:0; transition:opacity 2s ease 0.5s;
+  }
+  #title.show { opacity:1; }
+  #title h1 { font-weight:400; font-size:30px; letter-spacing:.55em; color:#cdb87a; }
+  #title p { font-family:'Shippori Mincho',serif; font-size:12px; letter-spacing:.5em; color:#7c7660; margin-top:6px; }
+  #inputBar {
+    display:none !important;
+    position:fixed; left:0; right:0; bottom:calc(34px + env(safe-area-inset-bottom)); z-index:4;
+    display:flex; flex-direction:column; align-items:center; gap:16px;
+    opacity:0; transition:opacity 1.6s ease 1s;
+  }
+  #inputBar.show { opacity:0; pointer-events:none; }
+  #slots { display:flex; gap:18px; }
+  .slot { display:flex; flex-direction:column; align-items:center; user-select:none; }
+  .slot .arrow {
+    background:none; border:none; color:#5c5742; font-size:13px; cursor:pointer;
+    padding:4px 16px; transition:.25s;
+  }
+  .slot .arrow:hover { color:#e3cd8b; }
+  .slot .glass {
+    width:58px; height:76px; display:flex; align-items:center; justify-content:center;
+    border:1px solid rgba(205,184,122,.4); border-top-width:0; border-bottom-width:0;
+    background:linear-gradient(180deg, rgba(20,28,52,.0), rgba(205,184,122,.07) 50%, rgba(20,28,52,.0));
+    font-size:40px; font-weight:600; color:#e9dcb0; letter-spacing:0;
+    text-shadow:0 0 16px rgba(233,220,176,.35);
+  }
+  .slot.active .glass { border-color:rgba(233,220,176,.9); box-shadow:0 0 22px rgba(205,184,122,.15); }
+  #answerBtn {
+    background:none; border:1px solid rgba(205,184,122,.45); color:#cdb87a;
+    font-family:'Cormorant Garamond',serif; font-size:15px; letter-spacing:.6em;
+    padding:11px 44px 11px 52px; cursor:pointer; transition:.35s;
+  }
+  #answerBtn:hover { color:#0a0f22; background:#cdb87a; box-shadow:0 0 34px rgba(205,184,122,.35); }
+  #msg { font-family:'Shippori Mincho',serif; font-size:13px; letter-spacing:.25em; color:#8a5b66; height:18px; opacity:0; transition:.5s; }
+  #msg.show { opacity:1; }
+  #inputBar.wrong #slots { animation:shiver .45s ease; }
+  @keyframes shiver { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(3px)} }
+  .overlay {
+    position:fixed; inset:0; z-index:10; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    background:radial-gradient(ellipse at 50% 40%, #0d1330 0%, #05070f 75%);
+    transition:opacity 1.6s ease; padding:24px;
+  }
+  .overlay.hidden { opacity:0; pointer-events:none; }
+  .overlay h1 { font-weight:400; font-size:clamp(34px,6vw,58px); letter-spacing:.5em; color:#cdb87a; margin-bottom:8px; }
+  .overlay .sub { font-family:'Shippori Mincho',serif; letter-spacing:.6em; color:#7c7660; font-size:13px; margin-bottom:44px; }
+  .overlay p { font-family:'Shippori Mincho',serif; max-width:420px; line-height:2.1; font-size:14px; color:#a59c7e; }
+  .btn {
+    margin-top:44px; padding:14px 52px; background:none;
+    border:1px solid rgba(205,184,122,.5); color:#cdb87a;
+    font-family:'Shippori Mincho',serif; font-size:14px; letter-spacing:.4em; cursor:pointer; transition:.35s;
+  }
+  .btn:hover { background:#cdb87a; color:#0a0f22; box-shadow:0 0 40px rgba(205,184,122,.4); }
+  #hud { position:fixed; right:26px; bottom:calc(30px + env(safe-area-inset-bottom)); z-index:5; display:flex; gap:10px; }
+  .hudbtn {
+    width:42px; height:42px; border-radius:50%; border:1px solid rgba(205,184,122,.35);
+    background:rgba(10,14,30,.55); color:#9a8d63; font-size:16px; cursor:pointer;
+    font-family:'Cormorant Garamond',serif; transition:.3s;
+  }
+  .hudbtn:hover { border-color:#cdb87a; color:#e9dcb0; }
+  #hintModal {
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(4,6,14,.86); z-index:20;
+  }
+  #hintModal.show { display:flex; }
+  .hintbox {
+    max-width:500px; width:90%; border:1px solid rgba(205,184,122,.35);
+    background:#0a0f20; padding:36px 42px; position:relative;
+  }
+  .hintbox h2 { font-weight:400; letter-spacing:.5em; color:#cdb87a; font-size:18px; margin-bottom:22px; }
+  .hintbox li { list-style:none; padding:13px 0; border-bottom:1px solid rgba(205,184,122,.12);
+    line-height:2; font-size:14px; font-family:'Shippori Mincho',serif; }
+  .hintbox li.locked { color:#454a5e; cursor:pointer; letter-spacing:.2em; }
+  .hintbox li.locked:hover { color:#8d8468; }
+  .hintbox .close { position:absolute; top:10px; right:16px; background:none; border:none; color:#5c5742; font-size:20px; cursor:pointer; }
+  #endPanel {
+    position:fixed; inset:0; z-index:8; display:none; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; pointer-events:none;
+    animation:fadein 3s ease;
+  }
+  #endPanel.show { display:flex; }
+  #endPanel .word { font-size:clamp(46px,9vw,96px); font-weight:400; letter-spacing:.6em; color:#f0e4bb; text-shadow:0 0 50px rgba(240,228,187,.6); padding-left:.6em; }
+  #endPanel .meaning { font-family:'Shippori Mincho',serif; color:#cdb87a; letter-spacing:.4em; margin-top:10px; font-size:15px; }
+  #endPanel .note { font-family:'Shippori Mincho',serif; color:#8d8468; line-height:2.3; margin-top:38px; font-size:13px; max-width:520px; }
+  @keyframes fadein { from{opacity:0} to{opacity:1} }
+  @media (max-width: 720px) {
+    #title { top:18px; left:18px; right:18px; }
+    #title h1 { font-size:22px; letter-spacing:.34em; }
+    #title p { font-size:11px; letter-spacing:.28em; }
+    #inputBar { bottom:calc(76px + env(safe-area-inset-bottom)); gap:12px; }
+    #slots { gap:8px; }
+    .slot .arrow { padding:4px 10px; }
+    .slot .glass { width:46px; height:62px; font-size:32px; }
+    #answerBtn { padding:10px 28px 10px 34px; letter-spacing:.4em; }
+    #hud { right:auto; left:50%; transform:translateX(-50%); bottom:calc(14px + env(safe-area-inset-bottom)); }
+    .overlay { justify-content:flex-start; padding:clamp(30px,8vh,76px) 18px 18px; overflow:auto; }
+    .overlay h1 { letter-spacing:.28em; padding-left:.28em; font-size:clamp(30px,11vw,42px); }
+    .overlay .sub { letter-spacing:.34em; margin-bottom:30px; }
+    .overlay p { font-size:13px; line-height:2; }
+    .btn { width:min(100%, 320px); padding:13px 20px; letter-spacing:.2em; }
+    .hintbox { max-height:82dvh; overflow:auto; padding:28px 24px; }
+    #endPanel { padding:24px 18px; }
+    #endPanel .word { letter-spacing:.32em; padding-left:.32em; }
+    #endPanel .note { margin-top:26px; font-size:12px; line-height:1.9; }
+  }
+  @media (max-width: 380px) {
+    #slots { gap:5px; }
+    .slot .glass { width:42px; height:58px; font-size:29px; }
+    #answerBtn { padding-inline:22px 18px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="title"><h1>ASTERISM</h1><p>— 星 の 綴 り —</p></div>
+
+<div id="inputBar">
+  <div id="slots"></div>
+  <button id="answerBtn">ANSWER</button>
+  <div id="msg">夜は、まだ沈黙している。</div>
+</div>
+
+<div id="hud">
+  <button class="hudbtn" id="hintBtn" title="ヒント">?</button>
+  <button class="hudbtn" id="muteBtn" title="音">♪</button>
+</div>
+
+<div id="hintModal">
+  <div class="hintbox">
+    <button class="close" id="hintClose">×</button>
+    <h2>OBSERVATOIRE</h2>
+    <ol id="hintList">
+      <li class="locked" data-hint="流れ星は、五つの星だけを順番に訪れている。その「並び」をよく見て。">…（一つ目の手がかり）</li>
+      <li class="locked" data-hint="星々の配列に、見覚えはないだろうか。あなたが毎日、指先で撫でているものだ。">…</li>
+      <li class="locked" data-hint="いちばん左上の星は「Q」。あとは、わかるはず。">…</li>
+    </ol>
+  </div>
+</div>
+
+<div id="endPanel">
+  <div class="word">ORION</div>
+  <div class="meaning">— 星座になった、狩人の名 —</div>
+  <div class="note">夜空は、はじめからキーボードだった。<br>
+  流れ星は O → R → I → O → N の鍵を、何度も叩いていた。<br>
+  あなたの指は、答えをずっと知っていた。</div>
+</div>
+
+<div class="overlay" id="intro">
+  <h1>ASTERISM</h1>
+  <div class="sub">星 の 綴 り</div>
+  <p>流れ星が、同じ道を繰り返す。<br>
+  五つの光が、ひとつの名を結ぶ。</p>
+  <button class="btn" id="enterBtn">夜空を見上げる</button>
+</div>
+
+<script>
+(() => {
+'use strict';
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = 1280, H = 800;
+let s=1, ox=0, oy=0, dpr=1;
+function fit(){
+  dpr = window.devicePixelRatio||1;
+  cv.width = innerWidth*dpr; cv.height = innerHeight*dpr;
+  cv.style.width = innerWidth+'px'; cv.style.height = innerHeight+'px';
+  s = Math.min(innerWidth/W, innerHeight/H);
+  ox = (innerWidth-W*s)/2; oy = (innerHeight-H*s)/2;
+}
+addEventListener('resize', fit); fit();
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng = mulberry32(20260611);
+
+/* ---------- QWERTY star map ---------- */
+const ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['Z','X','C','V','B','N','M'],
+];
+const OFFSET = [0, 0.30, 0.75];
+const U = 95, V = 118, X0 = (W - 9*U)/2, Y0 = 168;
+const KEYS = {};
+ROWS.forEach((row,r)=>row.forEach((ch,c)=>{
+  KEYS[ch] = {
+    ch,
+    x: X0 + (c+OFFSET[r])*U + (rng()-0.5)*7,
+    y: Y0 + r*V + (rng()-0.5)*7,
+    tw: rng()*Math.PI*2,
+    sz: 2.3 + rng()*1.3,
+  };
+}));
+const WORD = 'ORION';
+const PATH = WORD.split('').map(ch=>KEYS[ch]);
+
+/* background stars + nebulae */
+const bgStars = Array.from({length:170},()=>({
+  x:rng()*W, y:rng()*H*0.8, r:rng()*1.1+0.2, a:rng()*0.5+0.1, tw:rng()*Math.PI*2,
+}));
+const nebulae = [
+  {x:W*0.22,y:H*0.30,r:300,c:'rgba(64,52,120,0.10)'},
+  {x:W*0.78,y:H*0.22,r:260,c:'rgba(38,80,110,0.10)'},
+  {x:W*0.55,y:H*0.55,r:340,c:'rgba(90,50,90,0.07)'},
+];
+
+/* ---------- state ---------- */
+const state = { started:false, solved:false, solvedT:0, t:0, muted:false, drawing:false, drawn:'' };
+
+/* ---------- audio ---------- */
+let AC=null, padGain=null;
+function audioInit(){
+  if(AC) return;
+  AC = new (window.AudioContext||window.webkitAudioContext)();
+  padGain = AC.createGain(); padGain.gain.value=0.022; padGain.connect(AC.destination);
+  [110,164.8,220,329.6].forEach(f=>{
+    const o=AC.createOscillator(); o.type='sine'; o.frequency.value=f;
+    const g=AC.createGain(); g.gain.value=f>200?0.35:1;
+    o.connect(g); g.connect(padGain); o.start();
+  });
+}
+function chime(freq, vol=0.12){
+  if(!AC||state.muted) return;
+  const t0=AC.currentTime;
+  [[1,1],[2.76,0.3],[5.4,0.12]].forEach(([m,a])=>{
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.type='sine'; o.frequency.value=freq*m;
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(vol*a,t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+2.2);
+    o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0+2.3);
+  });
+}
+/* pitch follows the star's horizontal position — a subtle extra clue */
+const SCALE=[261.6,293.7,329.6,392,440,523.3,587.3,659.3,784,880];
+function starChime(k){
+  const idx = Math.max(0,Math.min(9,Math.round((k.x-X0)/U)));
+  chime(SCALE[idx]);
+}
+function dud(){
+  if(!AC||state.muted) return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type='triangle'; o.frequency.setValueAtTime(196,AC.currentTime);
+  o.frequency.exponentialRampToValueAtTime(130,AC.currentTime+0.4);
+  g.gain.setValueAtTime(0.12,AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+0.5);
+  o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime+0.55);
+}
+function fanfare(){
+  if(!AC||state.muted) return;
+  [261.6,329.6,392,523.3,659.3,784].forEach((f,i)=>setTimeout(()=>chime(f,0.1),i*180));
+}
+
+/* ---------- comet timeline ---------- */
+const TRAVEL=1.25, PAUSE=0.85, REST=1.8;
+const CYCLE = (PATH.length-1)*(TRAVEL+PAUSE) + PAUSE + REST;
+let clock=0, lastTs=null, lastStop=-1;
+const trail=[];
+function cometPos(tc){
+  /* returns {x,y,stop} — stop = index currently paused at, or -1 */
+  let t=tc;
+  if(t < PAUSE) return {x:PATH[0].x, y:PATH[0].y, stop:0};
+  t -= PAUSE;
+  for(let i=0;i<PATH.length-1;i++){
+    if(t < TRAVEL){
+      let k=t/TRAVEL; k = k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+      const a=PATH[i], b=PATH[i+1];
+      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2 - 46;
+      const x=(1-k)*(1-k)*a.x + 2*(1-k)*k*mx + k*k*b.x;
+      const y=(1-k)*(1-k)*a.y + 2*(1-k)*k*my + k*k*b.y;
+      return {x,y,stop:-1};
+    }
+    t -= TRAVEL;
+    if(t < PAUSE) return {x:PATH[i+1].x, y:PATH[i+1].y, stop:i+1};
+    t -= PAUSE;
+  }
+  return null; /* resting */
+}
+
+/* pulse rings at stops */
+const rings=[];
+/* particles for success */
+const sparks=[];
+
+/* ---------- render ---------- */
+function frame(ts){
+  if(lastTs===null) lastTs=ts;
+  const dt=Math.min(0.05,(ts-lastTs)/1000); lastTs=ts;
+  state.t+=dt;
+  if(state.started && !state.solved){
+    clock += dt;
+    if(clock>=CYCLE){ clock=0; lastStop=-1; trail.length=0; }
+  }
+
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle='#04060d'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(dpr*s,0,0,dpr*s,dpr*ox,dpr*oy);
+
+  /* sky gradient */
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#070b1d'); sky.addColorStop(0.55,'#0a0f24'); sky.addColorStop(1,'#11142a');
+  ctx.fillStyle=sky; ctx.fillRect(-ox/s,-oy/s,W+ox*2/s,H+oy*2/s);
+
+  /* nebulae */
+  nebulae.forEach(n=>{
+    const g=ctx.createRadialGradient(n.x,n.y,10,n.x,n.y,n.r);
+    g.addColorStop(0,n.c); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2); ctx.fill();
+  });
+
+  /* background stars */
+  bgStars.forEach(st=>{
+    const a=st.a*(0.6+0.4*Math.sin(state.t*1.4+st.tw));
+    ctx.fillStyle=`rgba(200,210,235,${a})`;
+    ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,Math.PI*2); ctx.fill();
+  });
+
+  /* horizon hills */
+  ctx.fillStyle='#05070f';
+  ctx.beginPath();
+  ctx.moveTo(-ox/s,H);
+  ctx.lineTo(-ox/s,H-130);
+  ctx.quadraticCurveTo(W*0.25,H-205,W*0.5,H-150);
+  ctx.quadraticCurveTo(W*0.78,H-105,W+ox/s,H-160);
+  ctx.lineTo(W+ox/s,H);
+  ctx.closePath(); ctx.fill();
+
+  const reveal = state.solved ? Math.min(1,state.solvedT/3) : 0;
+
+  /* keyboard row guide lines (after solve) */
+  if(reveal>0){
+    ctx.strokeStyle=`rgba(205,184,122,${0.30*reveal})`;
+    ctx.lineWidth=0.7;
+    ROWS.forEach(row=>{
+      ctx.beginPath();
+      row.forEach((ch,i)=>{
+        const k=KEYS[ch];
+        i===0?ctx.moveTo(k.x,k.y):ctx.lineTo(k.x,k.y);
+      });
+      ctx.stroke();
+    });
+    /* permanent path */
+    ctx.strokeStyle=`rgba(240,228,187,${0.65*reveal})`;
+    ctx.lineWidth=1.6;
+    ctx.shadowColor='rgba(240,228,187,0.8)'; ctx.shadowBlur=12*reveal;
+    ctx.beginPath();
+    PATH.forEach((k,i)=>i===0?ctx.moveTo(k.x,k.y):ctx.lineTo(k.x,k.y));
+    ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
+  /* main 26 stars */
+  Object.values(KEYS).forEach(k=>{
+    const tw=0.72+0.28*Math.sin(state.t*1.8+k.tw);
+    const onPath = WORD.includes(k.ch);
+    const traced = state.drawn.includes(k.ch);
+    const r = k.sz*(reveal&&onPath?1.5:1);
+    const g=ctx.createRadialGradient(k.x,k.y,0,k.x,k.y,r*5);
+    g.addColorStop(0,`rgba(235,230,210,${0.95*tw})`);
+    g.addColorStop(0.25,`rgba(220,210,170,${0.35*tw})`);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.arc(k.x,k.y,r*5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=traced ? `rgba(255,245,205,${tw})` : `rgba(245,242,228,${tw})`;
+    ctx.beginPath(); ctx.arc(k.x,k.y,r*0.85,0,Math.PI*2); ctx.fill();
+    /* 4-point flare */
+    ctx.strokeStyle=`rgba(235,228,200,${0.5*tw})`;
+    ctx.lineWidth=0.7;
+    const fl=r*3.2;
+    ctx.beginPath();
+    ctx.moveTo(k.x-fl,k.y); ctx.lineTo(k.x+fl,k.y);
+    ctx.moveTo(k.x,k.y-fl); ctx.lineTo(k.x,k.y+fl);
+    ctx.stroke();
+    /* letters after solve */
+    if(reveal>0){
+      ctx.fillStyle=`rgba(205,184,122,${0.9*reveal})`;
+      ctx.font='13px "Cormorant Garamond", serif';
+      ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillText(k.ch, k.x, k.y+9);
+    }
+  });
+
+  if(state.drawn.length>0 && !state.solved){
+    ctx.strokeStyle='rgba(240,228,187,0.72)';
+    ctx.lineWidth=2;
+    ctx.shadowColor='rgba(240,228,187,0.55)';
+    ctx.shadowBlur=10;
+    ctx.beginPath();
+    state.drawn.split('').map(ch=>KEYS[ch]).forEach((k,i)=>i===0?ctx.moveTo(k.x,k.y):ctx.lineTo(k.x,k.y));
+    ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
+  /* comet */
+  if(state.started && !state.solved){
+    const cp=cometPos(clock);
+    if(cp){
+      trail.push({x:cp.x,y:cp.y,a:1});
+      if(cp.stop>=0 && cp.stop!==lastStop){
+        lastStop=cp.stop;
+        rings.push({x:cp.x,y:cp.y,r:4,a:0.9});
+        starChime(PATH[cp.stop]);
+      }
+      if(cp.stop<0) lastStop=-1;
+      /* head */
+      const hg=ctx.createRadialGradient(cp.x,cp.y,0,cp.x,cp.y,18);
+      hg.addColorStop(0,'rgba(255,250,230,1)');
+      hg.addColorStop(0.3,'rgba(240,225,170,0.55)');
+      hg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=hg;
+      ctx.beginPath(); ctx.arc(cp.x,cp.y,18,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fffdf2';
+      ctx.beginPath(); ctx.arc(cp.x,cp.y,2.6,0,Math.PI*2); ctx.fill();
+    }
+    /* trail */
+    for(let i=trail.length-1;i>=0;i--){
+      const p=trail[i]; p.a-=dt*0.85;
+      if(p.a<=0){ trail.splice(i,1); continue; }
+      ctx.fillStyle=`rgba(240,228,180,${p.a*0.5})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,1.8*p.a+0.4,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  /* pulse rings */
+  for(let i=rings.length-1;i>=0;i--){
+    const r=rings[i]; r.r+=dt*60; r.a-=dt*0.85;
+    if(r.a<=0){ rings.splice(i,1); continue; }
+    ctx.strokeStyle=`rgba(235,225,190,${r.a})`;
+    ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2); ctx.stroke();
+  }
+
+  /* success sparks */
+  if(state.solved){
+    state.solvedT+=dt;
+    if(state.solvedT<1.4 && Math.random()<0.85){
+      const src=PATH[Math.floor(Math.random()*PATH.length)];
+      sparks.push({x:src.x,y:src.y,vx:(Math.random()-0.5)*130,vy:(Math.random()-0.7)*120,a:1,r:Math.random()*1.8+0.6});
+    }
+    for(let i=sparks.length-1;i>=0;i--){
+      const p=sparks[i];
+      p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=26*dt; p.a-=dt*0.5;
+      if(p.a<=0){ sparks.splice(i,1); continue; }
+      ctx.fillStyle=`rgba(240,228,187,${p.a})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  /* grain */
+  ctx.globalAlpha=0.05;
+  for(let i=0;i<24;i++){
+    ctx.fillStyle=Math.random()<0.5?'#000':'#fff';
+    ctx.fillRect(Math.random()*W,Math.random()*H,1,1);
+  }
+  ctx.globalAlpha=1;
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+function logical(e){
+  return { x:(e.clientX-ox)/s, y:(e.clientY-oy)/s };
+}
+function nearestStar(p){
+  let best=null, bd=42;
+  Object.values(KEYS).forEach(k=>{
+    const d=Math.hypot(k.x-p.x,k.y-p.y);
+    if(d<bd){ best=k; bd=d; }
+  });
+  return best;
+}
+function traceStar(p){
+  if(!state.started || state.solved) return;
+  const k=nearestStar(p);
+  if(!k) return;
+  const expected = WORD[state.drawn.length];
+  if(k.ch===expected){
+    state.drawn += k.ch;
+    starChime(k);
+    rings.push({x:k.x,y:k.y,r:4,a:0.9});
+    if(state.drawn===WORD) checkGesture();
+  } else if(!WORD.startsWith(state.drawn + k.ch)){
+    state.drawn='';
+    dud();
+  }
+}
+function checkGesture(){
+  state.solved=true; state.solvedT=0;
+  fanfare();
+  inputBar.style.transition='opacity 1.2s ease';
+  inputBar.style.opacity='0';
+  inputBar.style.pointerEvents='none';
+  setTimeout(()=>document.getElementById('endPanel').classList.add('show'),1800);
+}
+cv.addEventListener('pointerdown',e=>{
+  if(!state.started || state.solved) return;
+  state.drawing=true;
+  state.drawn='';
+  traceStar(logical(e));
+});
+cv.addEventListener('pointermove',e=>{ if(state.drawing) traceStar(logical(e)); });
+cv.addEventListener('pointerup',()=>{
+  if(!state.drawing) return;
+  state.drawing=false;
+  if(!state.solved && state.drawn!==WORD) setTimeout(()=>{ if(!state.solved) state.drawn=''; },420);
+});
+cv.addEventListener('pointercancel',()=>{ state.drawing=false; if(!state.solved) state.drawn=''; });
+
+/* ---------- input slots ---------- */
+const slotsEl=document.getElementById('slots');
+const letters=[0,0,0,0,0]; /* index into alphabet */
+const AB='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+let cursor=0;
+const slotDoms=[];
+for(let i=0;i<5;i++){
+  const d=document.createElement('div'); d.className='slot';
+  d.innerHTML=`<button class="arrow">▲</button><div class="glass">A</div><button class="arrow">▼</button>`;
+  slotsEl.appendChild(d); slotDoms.push(d);
+  const [up,,down]=d.children;
+  const glass=d.children[1];
+  up.addEventListener('click',()=>{ letters[i]=(letters[i]+1)%26; sync(); setCursor(i); chime(740,0.04); });
+  down.addEventListener('click',()=>{ letters[i]=(letters[i]+25)%26; sync(); setCursor(i); chime(660,0.04); });
+  glass.addEventListener('click',()=>setCursor(i));
+  d.addEventListener('wheel',e=>{
+    letters[i]=(letters[i]+(e.deltaY<0?1:25))%26; sync(); setCursor(i);
+    chime(700,0.03); e.preventDefault();
+  },{passive:false});
+}
+function sync(){ slotDoms.forEach((d,i)=>d.children[1].textContent=AB[letters[i]]); }
+function setCursor(i){
+  cursor=i;
+  slotDoms.forEach((d,k)=>d.classList.toggle('active',k===cursor));
+}
+sync(); setCursor(0);
+
+addEventListener('keydown',e=>{
+  if(!state.started||state.solved) return;
+  const k=e.key.toUpperCase();
+  if(k.length===1 && AB.includes(k)){
+    letters[cursor]=AB.indexOf(k); sync();
+    setCursor(Math.min(4,cursor+1)); chime(700,0.03);
+  } else if(e.key==='Backspace'){ setCursor(Math.max(0,cursor-1)); }
+  else if(e.key==='ArrowLeft'){ setCursor(Math.max(0,cursor-1)); }
+  else if(e.key==='ArrowRight'){ setCursor(Math.min(4,cursor+1)); }
+  else if(e.key==='Enter'){ check(); }
+});
+
+const inputBar=document.getElementById('inputBar');
+const msg=document.getElementById('msg');
+function check(){
+  if(state.solved) return;
+  const word=letters.map(i=>AB[i]).join('');
+  if(word===WORD){
+    state.solved=true; state.solvedT=0;
+    fanfare();
+    inputBar.style.transition='opacity 1.2s ease';
+    inputBar.style.opacity='0';
+    inputBar.style.pointerEvents='none';
+    setTimeout(()=>document.getElementById('endPanel').classList.add('show'),1800);
+  } else {
+    dud();
+    inputBar.classList.remove('wrong');
+    void inputBar.offsetWidth;
+    inputBar.classList.add('wrong');
+    msg.classList.add('show');
+    setTimeout(()=>msg.classList.remove('show'),2600);
+  }
+}
+document.getElementById('answerBtn').addEventListener('click',check);
+
+/* ---------- DOM ---------- */
+document.getElementById('enterBtn').addEventListener('click',()=>{
+  audioInit();
+  document.getElementById('intro').classList.add('hidden');
+  document.getElementById('title').classList.add('show');
+  inputBar.classList.add('show');
+  state.started=true;
+});
+document.getElementById('muteBtn').addEventListener('click',e=>{
+  state.muted=!state.muted;
+  if(padGain) padGain.gain.value=state.muted?0:0.022;
+  e.target.textContent=state.muted?'∅':'♪';
+});
+const hintModal=document.getElementById('hintModal');
+document.getElementById('hintBtn').addEventListener('click',()=>hintModal.classList.add('show'));
+document.getElementById('hintClose').addEventListener('click',()=>hintModal.classList.remove('show'));
+hintModal.addEventListener('click',e=>{ if(e.target===hintModal) hintModal.classList.remove('show'); });
+document.querySelectorAll('#hintList li').forEach(li=>{
+  li.addEventListener('click',()=>{
+    if(li.classList.contains('locked')){
+      li.textContent=li.dataset.hint; li.classList.remove('locked'); chime(520,0.05);
+    }
+  });
+});
+})();
+</script>
+</body>
+</html>
